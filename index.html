@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Name Search</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        input { width: 100%; padding: 12px; font-size: 16px; box-sizing: border-box; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .no-results { color: #888; font-style: italic; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>User Directory Search</h2>
+    <input type="text" id="searchInput" placeholder="Search by name..." disabled>
+    <div id="status">Loading data...</div>
+
+    <table id="resultsTable" style="display: none;">
+        <thead id="tableHeader"></thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <script>
+        let csvData = [];
+        let headers = [];
+
+        // 1. Fetch and read the local CSV file automatically
+        fetch('G-6-cond.csv')
+            .then(response => {
+                if (!response.ok) throw new Error('Could not find data.csv');
+                return response.text();
+            })
+            .then(text => {
+                parseCSV(text);
+                document.getElementById('status').style.display = 'none';
+                document.getElementById('searchInput').disabled = false;
+                document.getElementById('searchInput').placeholder = "Type a name to search...";
+            })
+            .catch(error => {
+                document.getElementById('status').innerText = "Error: Make sure 'data.csv' is in the same folder and you are running a local server.";
+                console.error(error);
+            });
+
+        // 2. Parse raw CSV text into Javascript Arrays
+        function parseCSV(text) {
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            if (lines.length === 0) return;
+
+            // Extract the first row as headers
+            headers = lines[0].split(',');
+            
+            // Extract the rest as data rows
+            csvData = lines.slice(1).map(line => {
+                // Simple comma split (Handles basic CSV strings)
+                return line.split(',');
+            });
+        }
+
+        // 3. Filter and display results on user input
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            const tableElement = document.getElementById('resultsTable');
+            const headerElement = document.getElementById('tableHeader');
+            const bodyElement = document.getElementById('tableBody');
+
+            // Hide table if search input is completely empty
+            if (query === "") {
+                tableElement.style.display = 'none';
+                return;
+            }
+
+            // Filter data rows where Name (assumed to be column index 0) matches query
+            const filtered = csvData.filter(row => row[1] && row[1].toLowerCase().includes(query));
+
+            if (filtered.length > 0) {
+                tableElement.style.display = 'table';
+                
+                // Render Table Headers
+                headerElement.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+                
+                // Render Filtered Data Rows
+                bodyElement.innerHTML = filtered.map(row => 
+                    `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+                ).join('');
+            } else {
+                // Show "No Results Found" if nothing matches
+                tableElement.style.display = 'table';
+                headerElement.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+                bodyElement.innerHTML = `<tr><td colspan="${headers.length}" class="no-results">No names found matching your search.</td></tr>`;
+            }
+        });
+    </script>
+</body>
+</html>
